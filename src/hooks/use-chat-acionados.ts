@@ -1,0 +1,48 @@
+import { useState, useEffect, useCallback } from 'react';
+import { toast } from '@/hooks/use-toast';
+
+export const useChatAcionados = () => {
+  const [acionadosSet, setAcionadosSet] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  // Busca os incidentes acionados no DynamoDB via API
+  const fetchAcionados = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('https://f6ffk8e9fe.execute-api.us-east-1.amazonaws.com/prod/chatacionados');
+      if (!res.ok) throw new Error(`Erro ao buscar acionados: ${res.status}`);
+      const data: { chamado: string }[] = await res.json();
+      setAcionadosSet(new Set(data.map(item => item.chamado.toString())));
+    } catch (error) {
+      toast({
+        title: 'Erro ao buscar acionados',
+        description: 'Não foi possível carregar os incidentes acionados',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAcionados();
+  }, [fetchAcionados]);
+
+  // Função para adicionar um chamado ao set de acionados
+  const addAcionado = useCallback((chamado: string) => {
+    setAcionadosSet(prev => new Set([...prev, chamado]));
+  }, []);
+
+  // Função para verificar se um chamado foi acionado
+  const isAcionado = useCallback((chamado: string) => {
+    return acionadosSet.has(chamado);
+  }, [acionadosSet]);
+
+  return {
+    acionadosSet,
+    loading,
+    addAcionado,
+    isAcionado,
+    refetch: fetchAcionados
+  };
+};
